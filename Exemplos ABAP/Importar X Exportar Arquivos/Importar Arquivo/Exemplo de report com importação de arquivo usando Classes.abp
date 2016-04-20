@@ -1,0 +1,445 @@
+*&---------------------------------------------------------------------*
+*& Report  ZMMC015
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT zmmc015.
+
+TYPES: BEGIN OF ty_itab,
+         comp	 TYPE c LENGTH 6,
+         forn  TYPE lfa1-lifnr,
+         cod   TYPE mara-matnr,
+         nsap  TYPE string,
+         nsite TYPE string,
+         ndetalhada TYPE string,
+         xx    TYPE c LENGTH 6,
+       END OF ty_itab.
+
+
+"Tabelas internas
+DATA: it_xlstab TYPE STANDARD TABLE OF alsmex_tabline,
+      it_tab    TYPE STANDARD TABLE OF ty_itab.
+
+
+"STRUCTURES ou Workarea
+DATA: wa_xlstab TYPE alsmex_tabline,
+      wa_tab    TYPE ty_itab.
+
+
+DATA it_excel     TYPE TABLE OF string WITH HEADER LINE.
+DATA v_filename   TYPE string.
+DATA v_str TYPE c LENGTH 262143.
+
+*----------------------------------------------------------------------*
+* Parâmetros de Seleção
+*----------------------------------------------------------------------*
+SELECTION-SCREEN BEGIN OF BLOCK a1 WITH FRAME TITLE text-001.
+PARAMETERS: p_fname  LIKE rlgrap-filename OBLIGATORY,
+            p_filewh AS CHECKBOX TYPE c DEFAULT 'X'.
+SELECTION-SCREEN END OF BLOCK a1.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_fname.
+  PERFORM f_f4_file.
+
+
+START-OF-SELECTION.
+
+  PERFORM f_load_xls USING p_fname.
+
+  CHECK sy-subrc EQ 0.
+  PERFORM f_load_itab USING p_filewh.
+  PERFORM f_save_text.
+
+
+FORM f_f4_file.
+
+  CLASS cl_gui_frontend_services DEFINITION LOAD.
+
+  DATA: l_filefilter   TYPE string,
+        l_filename     TYPE string,
+        l_filetable    TYPE filetable,
+        l_rc           TYPE i,
+        l_user_action  TYPE i,
+        l_window_title TYPE string.
+
+  DATA: l_fname TYPE rlgrap-filename.
+
+  " Pega o nome do arquivo.
+  l_fname = p_fname.
+
+* Set data type drop-down and popup title
+  CONCATENATE cl_gui_frontend_services=>filetype_text
+              cl_gui_frontend_services=>filetype_all
+          INTO l_filefilter.
+  l_window_title = 'Selecione o arquivo.'.
+
+* Dialogue
+  CALL METHOD cl_gui_frontend_services=>file_open_dialog
+    EXPORTING
+      window_title            = l_window_title
+*     default_extension       = con_ext
+*     DEFAULT_FILENAME        =
+      file_filter             = l_filefilter
+*     initial_directory       = con_init_dir
+*     MULTISELECTION          =
+    CHANGING
+      file_table              = l_filetable
+      rc                      = l_rc
+      user_action             = l_user_action
+    EXCEPTIONS
+      file_open_dialog_failed = 1
+      cntl_error              = 2
+      error_no_gui            = 3
+      not_supported_by_gui    = 4
+      OTHERS                  = 5.
+  IF sy-subrc <> 0.
+    MESSAGE e899(5a) WITH 'Error'.
+  ENDIF.
+
+* dialogue not canceled
+  CHECK l_user_action <> cl_gui_frontend_services=>action_cancel.
+
+  READ TABLE l_filetable INTO l_filename INDEX 1.
+  CHECK sy-subrc = 0.
+
+  p_fname = l_filename.
+
+
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*&      Form  F_LOAD_XLS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f_load_xls USING p_filename.
+
+****  DATA: l_start_col TYPE i     VALUE '1',
+****        l_start_row TYPE i     VALUE '1',
+****        l_end_col   TYPE i     VALUE '6',
+****        l_end_row   TYPE i     VALUE '65536',
+****        f_row       TYPE i     VALUE '0001'.
+****
+****  REFRESH: it_xlstab[].
+****  CALL FUNCTION 'ALSM_EXCEL_TO_INTERNAL_TABLE'
+****    EXPORTING
+****      filename                = p_filename
+****      i_begin_col             = l_start_col
+****      i_begin_row             = l_start_row
+****      i_end_col               = l_end_col
+****      i_end_row               = l_end_row
+****    TABLES
+****      intern                  = it_xlstab
+****    EXCEPTIONS
+****      inconsistent_parameters = 1
+****      upload_ole              = 2
+****      OTHERS                  = 3.
+
+****  CASE sy-subrc.
+****    WHEN 1.
+****      MESSAGE i398(00) WITH text-e01 ' [ inconsistent_parameters ]'.
+****    WHEN 2.
+****      MESSAGE i398(00) WITH text-e01 ' [ upload_ole ]'.
+****    WHEN 3.
+****      MESSAGE i398(00) WITH text-e01 ' [ Erro desconhecido ]'.
+****  ENDCASE.
+* Marcelo 04.06.2014
+
+  CLEAR: it_excel[], it_excel, v_filename.
+
+  MOVE p_filename TO v_filename.
+
+  CALL FUNCTION 'GUI_UPLOAD'
+    EXPORTING
+      filename            = v_filename
+      filetype            = 'ASC'
+      has_field_separator = 'X'
+    TABLES
+      data_tab            = it_excel.
+
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+            WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+
+  "  FORMATTING OF INTERNAL TABLE .
+  IF it_excel[] IS INITIAL.
+    MESSAGE i398(00) WITH 'Arquivo vazio.'.
+    sy-subrc = 8.
+  ELSE.
+    sy-subrc = 0.
+  ENDIF.
+
+ENDFORM.                    " F_LOAD_XLS
+*&---------------------------------------------------------------------*
+*&      Form  F_LOAD_ITAB
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f_load_itab USING p_header.
+
+  DATA: l_index TYPE i.
+  FIELD-SYMBOLS: <fs>.
+
+  REFRESH: it_tab.
+*  CHECK it_xlstab[] IS NOT INITIAL.
+  CHECK it_excel[] IS NOT INITIAL.
+
+  LOOP AT it_excel.
+
+    IF p_header IS NOT INITIAL AND sy-tabix EQ 1.
+      CONTINUE.
+    ENDIF.
+
+    CLEAR wa_tab.
+    SPLIT it_excel AT ';' INTO wa_tab-comp wa_tab-forn wa_tab-cod wa_tab-nsap wa_tab-nsite wa_tab-ndetalhada.
+
+    CALL FUNCTION 'CONVERSION_EXIT_MATN1_INPUT'
+      EXPORTING
+        input        = wa_tab-cod
+      IMPORTING
+        output       = wa_tab-cod
+      EXCEPTIONS
+        length_error = 1
+        OTHERS       = 2.
+
+    IF sy-subrc NE 0.
+      WRITE:/ 'Erro no código do material para  a linha', wa_xlstab-row, '. Registro foi ignorado.'.
+    ENDIF.
+
+    APPEND wa_tab TO it_tab.
+  ENDLOOP.
+
+
+*******  SORT it_xlstab BY row col.  " "#EC ..
+*******  LOOP AT it_xlstab INTO wa_xlstab.
+*******    IF p_header IS NOT INITIAL AND wa_xlstab-row EQ '0001'.
+*******      " Se possui cabeçalho, ignora.
+*******      CONTINUE.
+*******    ENDIF.
+*******
+*******    UNASSIGN <fs>.
+*******    MOVE wa_xlstab-col TO l_index.
+*******    ASSIGN COMPONENT l_index OF STRUCTURE wa_tab TO <fs>.
+*******
+*******    IF sy-subrc EQ 0.
+*******
+*******
+*******      CASE wa_xlstab-col.
+*******        WHEN '0003'.
+*******
+*******          CALL FUNCTION 'CONVERSION_EXIT_MATN1_INPUT'
+*******            EXPORTING
+*******              input        = wa_xlstab-value
+*******            IMPORTING
+*******              output       = <fs>
+*******            EXCEPTIONS
+*******              length_error = 1
+*******              OTHERS       = 2.
+*******
+*******          IF sy-subrc NE 0.
+*******            WRITE:/ 'Erro no código do material para  a linha', wa_xlstab-row, '. Registro foi ignorado.'.
+*******          ENDIF.
+*******
+*******        WHEN OTHERS.
+*******          MOVE wa_xlstab-value TO <fs>.
+*******      ENDCASE.
+*******
+*******    ELSE.
+*******      CONTINUE.
+*******    ENDIF.
+*******
+*******    AT END OF row .                                         "#EC *
+*******      APPEND wa_tab TO it_tab.
+*******      CLEAR wa_tab.
+*******    ENDAT.
+*******  ENDLOOP.
+
+ENDFORM.                    " F_LOAD_ITAB
+*&---------------------------------------------------------------------*
+*&      Form  F_SAVE_TEXT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM f_save_text.
+
+  DATA: l_size  TYPE i,
+        l_count TYPE i,
+        l_vezes TYPE i,
+        l_idx   TYPE i.
+
+  DATA: lt_lines TYPE STANDARD TABLE OF tline.
+
+  DATA: wl_header TYPE thead,
+        wl_header_b TYPE thead,
+        wl_lines  TYPE tline,
+        wa_matnr TYPE mara-matnr,
+        v_insert.
+
+
+  LOOP AT it_tab INTO wa_tab.
+
+    CLEAR: l_count, l_vezes.
+
+    SELECT SINGLE matnr INTO wa_matnr
+      FROM mara
+        WHERE matnr = wa_tab-cod.
+    IF sy-subrc IS INITIAL.
+
+      CLEAR: l_count, l_idx, wl_lines, wl_header_b.
+      CLEAR: wl_header, wl_lines, lt_lines[], v_insert.
+
+      " Nome do Site
+      wl_header-tdobject   = 'MATERIAL'.
+      wl_header-tdname     = wa_tab-cod.
+      wl_header-tdid       = 'GRUN'.
+      wl_header-tdspras    = sy-langu.
+      wl_header-tdform     = 'SYSTEM'.
+      wl_header-tdlinesize = 100.
+
+      CALL FUNCTION 'READ_TEXT'
+        EXPORTING
+          id                      = wl_header-tdid
+          language                = wl_header-tdspras
+          name                    = wl_header-tdname
+          object                  = wl_header-tdobject
+        TABLES
+          lines                   = lt_lines[]
+        EXCEPTIONS
+          id                      = 1
+          language                = 2
+          name                    = 3
+          not_found               = 4
+          object                  = 5
+          reference_check         = 6
+          wrong_access_to_archive = 7
+          OTHERS                  = 8.
+      IF sy-subrc <> 0.
+* Implement suitable error handling here
+      ENDIF.
+      IF lt_lines[] IS INITIAL.
+        v_insert = 'X'.
+      ENDIF.
+
+      REFRESH: lt_lines[].
+      CLEAR: wl_lines.
+
+      l_size = strlen( wa_tab-nsite ).
+
+      IF l_size > 51.
+
+        CLEAR v_str.
+        v_str =  wa_tab-nsite.
+        CALL FUNCTION 'C14W_STRING_TO_TLINE'
+          EXPORTING
+            i_string    = v_str
+          TABLES
+            e_tline_tab = lt_lines.
+
+      ELSE.
+
+        wl_lines-tdline =    wa_tab-nsite.
+        wl_lines-tdformat = '*'.
+        APPEND wl_lines TO lt_lines.
+
+      ENDIF.
+
+      CALL FUNCTION 'SAVE_TEXT'
+        EXPORTING
+          header          = wl_header
+          insert          = v_insert
+          savemode_direct = 'X'
+        TABLES
+          lines           = lt_lines[].
+
+
+      IF sy-subrc EQ 0.
+        CALL FUNCTION 'COMMIT_TEXT'.
+        COMMIT WORK.
+        WRITE:/ 'Texto para Material ', wa_tab-cod, ' - [ GRAVADO - DESCRIÇÃO SITE ]'.
+      ELSE.
+        WRITE:/ 'Texto para Material ', wa_tab-cod, ' - [ ERRO - DESCRIÇÃO SITE]'.
+      ENDIF.
+
+***** Detalhado
+      CLEAR: l_count, l_idx, wl_lines, wl_header_b.
+      CLEAR: wl_header, wl_lines, lt_lines[], v_insert.
+
+      " Nome do Site
+      wl_header-tdobject   = 'MATERIAL'.
+      wl_header-tdname     = wa_tab-cod.
+      wl_header-tdid       = 'GRUN'.
+      wl_header-tdspras    = 'E'.
+      wl_header-tdform     = 'SYSTEM'.
+      wl_header-tdlinesize = 072.
+      wl_header-tdtxtlines = 00001.
+      CALL FUNCTION 'READ_TEXT'
+        EXPORTING
+          id                            =  wl_header-tdid
+          language                      = wl_header-tdspras
+          name                          = wl_header-tdname
+          object                        = wl_header-tdobject
+        TABLES
+          lines                         = lt_lines[]
+       EXCEPTIONS
+         id                            = 1
+         language                      = 2
+         name                          = 3
+         not_found                     = 4
+         object                        = 5
+         reference_check               = 6
+         wrong_access_to_archive       = 7
+         OTHERS                        = 8
+                .
+      IF sy-subrc <> 0.
+      ENDIF.
+      IF lt_lines[] IS INITIAL.
+        v_insert = 'X'.
+      ENDIF.
+
+      REFRESH: lt_lines[].
+
+      CLEAR v_str.
+      v_str =  wa_tab-ndetalhada.
+
+      CALL FUNCTION 'C14W_STRING_TO_TLINE'
+        EXPORTING
+          i_string    = v_str
+        TABLES
+          e_tline_tab = lt_lines.
+
+
+
+      CALL FUNCTION 'SAVE_TEXT'
+        EXPORTING
+          header          = wl_header
+          insert          = v_insert
+          savemode_direct = 'X'
+        TABLES
+          lines           = lt_lines[].
+
+
+      IF sy-subrc EQ 0.
+        CALL FUNCTION 'COMMIT_TEXT'.
+        COMMIT WORK.
+        WRITE:/ 'Texto para Material ', wa_tab-cod, ' - [ GRAVADO - DESCRIÇÃO DETALHADA ]'.
+      ELSE.
+        WRITE:/ 'Texto para Material ', wa_tab-cod, ' - [ ERRO - DESCRIÇÃO DETALHADA ]'.
+      ENDIF.
+
+    ENDIF.
+  ENDLOOP.
+
+ENDFORM.                    " F_SAVE_TEXT

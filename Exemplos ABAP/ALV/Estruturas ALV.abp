@@ -1,0 +1,64 @@
+Exemplo de Estrutura de um ALV Básico
+
+*Tables:
+
+*Tipos:
+
+*Tabelas internas
+
+*Declaração Fieldcat
+
+*Declarações de Workareas
+
+*Estrutura do Layout
+
+Start-of-selection
+
+Perform f_busca_dados
+
+Perform f_monta_dados
+
+Perform f_gera_alv
+
+
+*Nos comentários dessa nota estarão os "forms"
+
+
+
+
+
+*Gera_alv
+*monta os campos para o relatorio
+*call function reuse alv grid display
+*exporting *parametros
+*Table It_saida
+
+
+
+*Form f_monta_dados
+*loop at it_mara into wa_mara
+*read table t_makt into wa_makt
+*with key matnr = it_mara-matnr
+*if sy-subrc = 0 ou is intial
+*wa_saida-matmnr = wa_mara-matmnr
+*wa_saida-mtart    = wa_mara-mtart
+*wa_saida-maktx  = wa_mara-maktx
+*append wa_saida to it_saida
+*endif
+*endloop
+
+
+***Form f_busca_dados.
+***select * into table it_mara  
+***  from mara 
+***where matnr in so_matnr
+****verifica se tem valor na tabela
+***If it_mara[] is not initial
+***Select * into table it_makt
+***from makt
+***for all entries in it_mara
+***where matnr EQ it_mara-matnr
+***and spras EQ sy-langu
+***Endform.
+
+

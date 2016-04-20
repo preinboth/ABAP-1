@@ -1,0 +1,12 @@
+[System] 
+Name=R/3 
+Client= 
+Description= 
+[User] 
+Name= 
+Language= 
+Password= 
+[Function] 
+Command=/H 
+Title=Title 
+Type=SystemCommand

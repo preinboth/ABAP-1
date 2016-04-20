@@ -1,0 +1,31 @@
+*Declarar a exit no inicio do include
+form get_exit_titles tables etab.
+  data: begin of exits occurs 50,
+          name(5)   type c,
+          param     like c_exit_param_none,
+          title(60) type c,
+        end of exits.
+* >>>>> BEGIN INSERT
+  exits-name = 'HISTO'.
+  exits-param = c_exit_param_none.
+  exits-title = text-103. "Historical description
+  append exits.
+* >>>>> END INSERT
+
+  exits-name = 'Z_CC'.
+  exits-param = c_exit_param_none.
+  exits-title = text-103. "Centro de Custo
+  append exits.
+
+  exits-name = 'ZMB1C'.
+  exits-param = c_exit_param_none.
+  exits-title = 'Alterar o tipo de documento contábil de “WA” para “WW”.'. "Condição de pagamento
+  append exits.
+
+*Criar o form na mão.
+form zmb1c.
+
+endform.                    "zmb1c
+
+*Se não aparecer no match-code, rodar esse programa quando a exit na OBBH não aparece.
+*RGUGBR00
