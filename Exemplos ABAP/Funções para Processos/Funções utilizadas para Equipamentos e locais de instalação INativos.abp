@@ -1,0 +1,182 @@
+*&---------------------------------------------------------------------*
+*&      Form  F_FILTRA_POSICAO_ATIVA
+*&---------------------------------------------------------------------*
+*       Busca os Pneus com posição Inativas e exclui da exibição ALV.
+*----------------------------------------------------------------------*
+*  -->  p1        it_saida é filtrada para não aparecer o local de
+*                   de instalação inativo.
+*  --> p2         Busca placas para retornar a posição do local de instalção
+*----------------------------------------------------------------------*
+FORM f_filtra_posicao_ativa.
+  "DATA: "it_iflo_tab          TYPE TABLE OF rihiflo WITH HEADER LINE,   "LIKE rihiflo OCCURS 0 WITH HEADER LINE,
+        "it_iflo_tab_aux      TYPE TABLE OF rihiflo WITH HEADER LINE,
+       " lv_tplnr             TYPE rihiflo-tplnr,
+       " t_funcloc_inst_equis LIKE alm_me_installed_equi OCCURS 0 WITH HEADER LINE,
+       " l_pos(3),
+*       c_wa(9)                   VALUE 'WA_PNEUS-',
+*       c_campo(12),
+      " lv_len               TYPE i,
+      "  lv_tabix             LIKE sy-tabix.                 "775592
+
+  DATA: "wa_saida_placa TYPE ty_equi,
+        it_status       TYPE STANDARD TABLE OF jstat WITH HEADER LINE,
+        it_status_aux   TYPE STANDARD TABLE OF jstat WITH HEADER LINE.
+
+  TYPES: BEGIN OF ty_equi_del,
+         objnr type equi-objnr,
+         END OF ty_equi_del.
+
+  DATA: it_equi_del type table of ty_equi_del WITH HEADER LINE.
+ " RANGES: r_pos FOR l_pos.
+
+*  LOOP AT it_saida INTO wa_saida_placa.
+**  LOOP AT it_equi INTO wa_saida_placa.
+**
+**    CHECK wa_saida_placa-license_num IS NOT INITIAL. "Se nao funcionar usar if com continue.
+**    lv_tplnr = wa_saida_placa-license_num.
+**    FREE it_iflo_tab[].
+**
+**    CALL FUNCTION 'PM_HIERARCHY_CALL_IFLO'
+**      EXPORTING
+**        datum             = sy-datum
+**        selmod            = 'D'
+**        tplnr             = lv_tplnr
+**      TABLES
+**        iflo_tab          = it_iflo_tab
+**      EXCEPTIONS
+**        no_hierarchy      = 1
+**        no_selection      = 2
+**        no_valid_selmod   = 3
+**        no_valid_tplnr    = 4
+**        no_object_defined = 5
+**        OTHERS            = 6.
+**
+**    CHECK it_iflo_tab[] IS NOT INITIAL.
+**    APPEND LINES OF it_iflo_tab TO it_iflo_tab_aux.
+**  ENDLOOP.
+**
+**  FREE it_iflo_tab.
+**  it_iflo_tab[] = it_iflo_tab_aux[].
+**  FREE it_iflo_tab_aux[].
+**
+**
+  LOOP AT it_equi.
+*    FREE it_status[].
+
+    CALL FUNCTION 'STATUS_READ'
+      EXPORTING
+*       client           = sy-mandt
+        objnr            = it_equi-objnr "wa_equi-objnr
+*       only_active      = 'X'
+      TABLES
+        status           = it_status
+      EXCEPTIONS
+        object_not_found = 1
+        OTHERS           = 2.
+
+    IF sy-subrc = 0.
+      READ TABLE it_status WITH KEY stat = 'I0320'. "INACT
+      IF sy-subrc = 0.
+      Append it_equi-objnr to it_equi_del.
+      ENDIF.
+
+
+
+   "Apenas para testes
+      READ TABLE it_status WITH KEY stat = 'I0076'. "INACT
+      IF sy-subrc = 0.
+      Append it_equi-objnr to it_equi_del.
+      ENDIF.
+   "Apenas para testes
+
+    ENDIF.
+
+*    CHECK it_status[] IS NOT INITIAL.
+*    APPEND LINES OF it_status TO it_status_aux.
+
+  ENDLOOP.
+
+IF it_equi_del[] is not initial.
+  LOOP AT it_equi_del.
+  DELETE it_equi WHERE objnr = it_equi_del-objnr.
+  ENDLOOP.
+ENDIF.
+
+************ Status
+***********      READ TABLE it_jcds WITH KEY objnr = it_equi-objnr
+***********                                  stat  = 'I0320'.
+***********      IF sy-subrc = 0.
+***********        IF r_ativo = 'X'.
+***********          CONTINUE.
+***********        ENDIF.
+***********      ELSE.
+***********        IF r_inact = 'X'.
+***********          CONTINUE.
+***********        ENDIF.
+***********      ENDIF.
+***********      LOOP AT it_jcds WHERE objnr = it_equi-objnr.
+***********        READ TABLE it_tj30t WITH KEY estat = it_jcds-stat.
+***********        IF sy-subrc = 0.
+***********          IF it_saida-status IS INITIAL.
+***********            it_saida-status = it_tj30t-txt30.
+***********          ELSE.
+***********            CONCATENATE it_saida-status ';' it_tj30t-txt30 INTO
+***********                        it_saida-status.
+***********          ENDIF.
+***********        ELSE.
+***********          READ TABLE it_tj02t WITH KEY istat = it_jcds-stat.
+***********          IF sy-subrc = 0.
+***********            IF it_saida-status IS INITIAL.
+***********              it_saida-status = it_tj02t-txt30.
+***********            ELSE.
+***********              CONCATENATE it_saida-status ';' it_tj02t-txt30 INTO
+***********                          it_saida-status.
+***********            ENDIF.
+***********          ENDIF.
+***********        ENDIF.
+***********        TRANSLATE it_saida-status TO UPPER CASE.
+***********
+***********
+
+*PERFORM zf_conversion_tplnr USING 'I' CHANGING lv_tplnr. "Exit de conversão para TPLNR
+
+
+  LOOP AT it_iflo_tab WHERE tplnr NE lv_tplnr.
+
+    "Verifica status Local de Instalação
+    CALL FUNCTION 'ZFPM_VERIFICA_STATUS_INATIVO'
+      EXPORTING
+        i_objnr        = it_iflo_tab-objnr
+      EXCEPTIONS
+        status_inativo = 1
+        OTHERS         = 2.
+
+    IF sy-subrc <> 0.
+
+      lv_len = strlen( it_iflo_tab-tplnr ).
+      lv_len = lv_len - 3.
+      l_pos = it_iflo_tab-tplnr+lv_len.
+      IF l_pos(1) = '-'.
+        lv_len    = lv_len + 1.
+        l_pos = it_iflo_tab-tplnr+lv_len.
+      ENDIF.
+
+      READ TABLE it_saida WITH KEY posicao = l_pos.
+      IF sy-subrc = 0.
+        DELETE it_saida INDEX sy-tabix.
+        r_pos-sign   = 'I'.
+        r_pos-option = 'EQ'.
+        r_pos-low    = l_pos.
+        APPEND r_pos.
+      ENDIF.
+
+    ENDIF.
+
+    CALL FUNCTION 'ALM_ME_FUNCLOC_INSTALLED_EQUI'
+      EXPORTING
+        i_funcloc            = it_iflo_tab-tplnr
+      TABLES
+        t_funcloc_inst_equis = t_funcloc_inst_equis[].
+
+  ENDLOOP.
+ENDFORM.                    " F_FILTRA_POSICAO_ATIVA

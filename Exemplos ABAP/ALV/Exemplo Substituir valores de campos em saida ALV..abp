@@ -1,0 +1,47 @@
+                              "Substituir forma de exibição de campos em relatório alv
+
+      "Incluindo uma coluna de descrição na saida do realtorio quando já temos algum campo que exibe algum código referente a essa descrição
+
+
+      READ TABLE it_zpst005 INTO wa_zpst005 WITH KEY zztiplin = 'FASE' linger = it_saida-fase.
+      IF sy-subrc EQ 0.
+        it_saida-linha_fase = wa_zpst005-linha.
+      ENDIF.
+
+      READ TABLE it_zpst005 INTO wa_zpst005 WITH KEY zztiplin = 'METODO' linger = it_saida-metodologia.
+      IF sy-subrc EQ 0.
+        it_saida-linha_metod = wa_zpst005-linha.
+      ENDIF.
+
+      READ TABLE it_zpst005 INTO wa_zpst005 WITH KEY zztiplin = 'NAT_PRO' linger = it_saida-nat_mudanca.
+      IF sy-subrc EQ 0.
+        it_saida-linha_nat_mudanca = wa_zpst005-linha.
+      ENDIF.
+
+      READ TABLE it_zpst005 INTO wa_zpst005 WITH KEY zztiplin = 'IMPACTO' linger = it_saida-impacto.
+      IF sy-subrc EQ 0.
+        it_saida-linha_impacto = wa_zpst005-linha.
+      ENDIF.
+
+"Inserindo uma descrição na saida do realtorio com um valor que já era impresso e substituir por um valor fixo.
+"Baseado em imprimir um intervalo de valores quando desejar exibir um nome ao inves de códigos
+
+      CASE wa_zpst027-sts_doc.
+        WHEN 'GR'.
+          it_saida-desc_sts_doc = 'Gravado'.
+
+        WHEN 'EA'.
+          it_saida-desc_sts_doc = 'Em aprovação'.
+
+        WHEN 'AP'.
+          it_saida-desc_sts_doc = 'Aprovado'.
+
+        WHEN 'NA'.
+          it_saida-desc_sts_doc = 'Não Aprovado'.
+
+        WHEN 'CA'.
+          it_saida-desc_sts_doc = 'Cancelado'.
+
+        WHEN 'ER'.
+          it_saida-desc_sts_doc = 'Em Revisão'.
+      ENDCASE.
