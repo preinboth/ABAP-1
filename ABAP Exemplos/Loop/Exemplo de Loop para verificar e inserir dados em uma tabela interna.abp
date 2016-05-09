@@ -1,0 +1,22 @@
+ LOOP AT it_44_50.
+
+      READ TABLE it_saida_aux WITH TABLE KEY num_doc = 44_50-numdoc.
+      IF sy-subrc = 0.
+        l_achou = 'N'.
+        LOOP AT it_saida_aux WHERE num_doc = it_44_50-num_doc .
+          IF it_saida_aux-aufnr IS INITIAL.
+            it_saida_aux-aufnr = it_44_50-aufnr.
+            it_saida_aux-zzpacote = it_44_50-zzpacote.
+            l_achou = 'S'.
+            EXIT.
+          ENDIF.
+        ENDLOOP.
+        IF l_achou = 'N'.
+          it_saida_aux-aufnr = it_44_50-aufnr.
+          it_saida_aux-zzpacote = it_44_50-zzpacote.
+          CLEAR it_saida_aux-aprovador.
+        ENDIF.
+        APPEND it_saida_aux TO it_saida.
+      ENDIF.
+
+    ENDLOOP. 

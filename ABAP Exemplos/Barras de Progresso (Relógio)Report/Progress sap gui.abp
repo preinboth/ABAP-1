@@ -1,0 +1,7 @@
+DO 100 TIMES.
+
+CALL FUNCTION 'SAPGUI_PROGRESS_INDICATOR'
+EXPORTING
+percentage = sy-index
+text = sy-index.
+ENDDO.
