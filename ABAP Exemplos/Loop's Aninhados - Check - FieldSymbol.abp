@@ -1,0 +1,45 @@
+REPORT zlooping.
+
+DATA:
+  lt_bkpf TYPE STANDARD TABLE OF bkpf,
+  lt_bseg TYPE STANDARD TABLE OF bseg.
+
+FIELD-SYMBOLS:
+  <ls_bkpf> TYPE bkpf,
+  <ls_bseg> TYPE bseg.
+
+"Ordenar para BINARY SEARCH
+SORT:
+  lt_bkpf BY bukrs belnr gjahr,
+  lt_bseg BY bukrs belnr gjahr buzei.
+
+"Looping cabeçalho
+LOOP AT lt_bkpf ASSIGNING <ls_bkpf>.
+
+  "Pega índice do registro (sy-tabix)
+  READ TABLE lt_bseg
+             WITH KEY bukrs = <ls_bkpf>-bukrs
+                                  belnr = <ls_bkpf>-belnr
+                                  gjahr = <ls_bkpf>-gjahr
+             TRANSPORTING NO FIELDS
+             BINARY SEARCH.
+
+  "Verifica se encontrou registro
+  CHECK sy-subrc = 0.
+
+  "Looping item
+  LOOP AT lt_bseg ASSIGNING <ls_bseg> FROM sy-tabix.
+
+    "Verifica se chave do registro mudou, se sim, sai do looping no item
+    IF <ls_bkpf>-bukrs <> <ls_bseg>-bukrs
+       OR <ls_bkpf>-belnr <> <ls_bseg>-belnr
+       OR <ls_bkpf>-gjahr <> <ls_bseg>-gjahr.
+      EXIT.
+    ENDIF.
+
+    "Faz alguma coisa
+    "Faz outra coisa
+
+  ENDLOOP.
+
+ENDLOOP.
