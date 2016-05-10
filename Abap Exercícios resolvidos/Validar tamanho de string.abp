@@ -1,0 +1,25 @@
+*********************************************************************************************************
+*Escrever um programa executável que conta um comprimento de string e se é maior do que 20 caracteres,	*																									
+*escrever  “Too big”. Se não, escreva o comprimento da string.											*															
+*																										*
+*Solution:																								*		
+*********************************************************************************************************
+REPORT z_abap101_049.
+
+DATA v_string TYPE string VALUE '1234567890ABCDEFGHIJ'.
+DATA v_string_length TYPE i.
+
+START-OF-SELECTION.
+
+v_string_length = strlen( v_string ).
+
+IF v_string_length > 20 .
+
+WRITE 'Too big'.
+
+ELSE.
+
+WRITE v_string_length.
+
+ENDIF.
+
