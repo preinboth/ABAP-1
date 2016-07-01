@@ -1,0 +1,18 @@
+
+  SELECT a~nrtransferencia a~erdat a~erzet a~ernam a~kostl_origem a~kostl_destino a~ernam_dest
+         a~data_autorizacao a~hr_autoriza a~status b~bukrs b~anln1 b~anln2 "b~dt_prev_ret
+         c~invnr c~txt50
+    INTO TABLE t_ativos
+    FROM zfit003 AS a INNER JOIN zfit004 AS b
+         ON a~nrtransferencia = b~nrtransferencia INNER JOIN anla AS c
+         ON b~bukrs = c~bukrs AND
+            b~anln1 = c~anln1 AND
+            b~anln2 = c~anln2
+      WHERE a~nrtransferencia IN s_nr
+        AND a~erdat IN s_erdat
+        AND a~kostl_origem IN s_origem
+        AND a~kostl_destino IN s_destin
+        AND a~status IN s_status
+        AND b~anln1 IN s_anln1
+        AND b~anln2 IN s_anln2
+        AND c~invnr IN s_invnr. 

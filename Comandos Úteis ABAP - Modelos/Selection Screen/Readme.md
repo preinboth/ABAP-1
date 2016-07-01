@@ -1,0 +1,20 @@
+ 
+
+
+#Exemplo de Criação de tela de seleção Abap
+_Criação de linhas e parametros check_
+<div><pre>
+
+  SELECTION-SCREEN SKIP 1.
+  SELECTION-SCREEN BEGIN OF LINE.
+  SELECTION-SCREEN COMMENT 1(31) text-001 FOR FIELD p_flag .
+  SELECTION-SCREEN END OF LINE.
+
+
+SELECTION-SCREEN SKIP 1.
+SELECTION-SCREEN BEGIN OF LINE.
+PARAMETERS: p_flag AS CHECKBOX.
+SELECTION-SCREEN COMMENT 2(55) text-001 FOR FIELD p_flag.
+SELECTION-SCREEN END OF LINE.
+
+</div></pre>
